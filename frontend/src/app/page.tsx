@@ -35,19 +35,13 @@ export default function Home() {
     if (!isHydrated) return;
 
     if (user) {
-      // User is authenticated, redirect to their dashboard
-      if (user.role === 'child') {
-        router.push('/dashboard');
-      } else if (user.role === 'parent') {
-        router.push('/parent');
-      } else if (user.role === 'teacher') {
-        router.push('/teacher');
-      }
+      // User is authenticated, show content (don't redirect)
+      setShowContent(true);
     } else {
-      // User is not authenticated, show welcome content (don't redirect)
+      // User is not authenticated, show welcome content
       setShowContent(true);
     }
-  }, [user, router, isHydrated]);
+  }, [user, isHydrated]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"

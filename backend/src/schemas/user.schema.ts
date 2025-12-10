@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
@@ -56,6 +56,9 @@ export class User {
   @Prop({ type: [String], ref: 'User', default: [] })
   studentsIds?: string[]; // For teacher users
 
+  @Prop({ type: [Types.ObjectId], ref: 'Course', default: [] })
+  courseIds?: Types.ObjectId[]; // For teacher users - courses they are responsible for
+
   @Prop({ default: true })
   isActive: boolean;
 
@@ -70,4 +73,7 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+// Index for course lookup
+UserSchema.index({ courseIds: 1 });
 

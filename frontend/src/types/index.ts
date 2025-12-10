@@ -39,6 +39,7 @@ export interface User {
   parentId?: string;
   childrenIds?: string[];
   studentsIds?: string[];
+  courseIds?: string[]; // For teachers - courses they are assigned to
   isActive: boolean;
   avatar?: string;
   loginStreak: number;
@@ -111,5 +112,103 @@ export interface LeaderboardEntry {
   points: number;
   gamesCompleted: number;
   level: number;
+}
+
+// Course Management Types
+export interface Course {
+  _id: string;
+  name: string;
+  nameArabic?: string;
+  description?: string;
+  descriptionArabic?: string;
+  code: string;
+  level?: string;
+  teacherIds: string[] | User[];
+  gameIds: string[] | Game[];
+  topics?: string[];
+  subject?: string;
+  isActive: boolean;
+  studentCount: number;
+  academicYear?: string;
+  settings: {
+    enableGameBasedLearning?: boolean;
+    enableLeaderboard?: boolean;
+    enableTeamWork?: boolean;
+    minGamesRequired?: number;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CourseStudentActivity {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  totalGamesPlayed: number;
+  completedGames: number;
+  totalPointsEarned: number;
+  currentLevel: number;
+  lastActive: string;
+  gameProgress: {
+    gameId: string;
+    gameTitle: string;
+    playCount: number;
+    score: number;
+    timeSpent: number;
+    isCompleted: boolean;
+    completionPercentage: number;
+    lastPlayedAt: string;
+  }[];
+  recentActivities: any[];
+  healthStatus: 'healthy' | 'concerning' | 'critical';
+}
+
+export interface CourseAnalytics {
+  courseId: string;
+  timestamp: string;
+  studentMetrics: {
+    totalStudents: number;
+    activeStudents: number;
+    inactiveOrCriticalStudents: number;
+    activitiesPercentage: string;
+  };
+  pointsMetrics: {
+    totalPointsDistributed: number;
+    avgPointsPerStudent: string;
+  };
+  engagementMetrics: {
+    avgGamesPlayedPerStudent: string;
+    avgCompletionRate: string;
+  };
+  gameMetrics: {
+    gameId: string;
+    gameTitle: string;
+    totalPlays: number;
+    completedCount: number;
+    completionRate: string;
+    avgScore: string;
+    avgTimeSpent: number;
+    totalPointsDistributed: number;
+  }[];
+  topPerformers: {
+    studentName: string;
+    pointsEarned: number;
+    gamesCompleted: number;
+  }[];
+  needsAttention: {
+    studentName: string;
+    status: string;
+    lastActive: string;
+  }[];
+}
+
+export interface CourseDashboardSummary {
+  courseId: string;
+  courseName: string;
+  courseCode: string;
+  gameCount: number;
+  studentCount: number;
+  totalPointsDistributed: number;
+  lastUpdated: string;
 }
 

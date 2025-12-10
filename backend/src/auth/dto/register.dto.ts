@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsDateString, ValidateIf, IsNumber, Min, Max } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsDateString, ValidateIf, IsNumber, Min, Max, IsArray, ArrayMinSize } from 'class-validator';
 import { UserRole, AgeGroup } from '../../schemas/user.schema';
 
 export class RegisterDto {
@@ -35,5 +35,11 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   parentId?: string; // For child registration
+
+  @ValidateIf((o) => o.role === 'teacher')
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  courseIds?: string[]; // For teacher registration - courses they will be assigned to
 }
 

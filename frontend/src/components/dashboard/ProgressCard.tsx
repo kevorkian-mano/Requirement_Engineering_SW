@@ -15,35 +15,36 @@ export function ProgressCard({ language, user }: ProgressCardProps) {
 
   useEffect(() => {
     const loadProgress = async () => {
-      if (!user?._id) return;
+      if (!user?._id) {
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
-        // Get progress for the week
-        const [progressRes, screenTimeRes] = await Promise.all([
-          progressAPI.getUserProgress(),
-          monitoringAPI.getScreenTime(user._id, { range: 'week' }),
-        ]);
+        console.log('Loading progress for user:', user._id);
+        
+        // Get user progress
+        const progressRes = await progressAPI.getUserProgress();
+        console.log('Raw progress response:', progressRes);
 
         const progress = progressRes.data || [];
-        const screenTime = screenTimeRes.data || {};
+        console.log('Progress array:', progress);
+        console.log('Progress count:', progress.length);
 
-        // Calculate weekly activities completed
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() - 7);
-        const recentProgress = progress.filter((p: any) => {
-          const lastPlayed = new Date(p.lastPlayedAt || p.createdAt);
-          return lastPlayed >= weekStart;
-        });
+        // Calculate weekly activities - use all progress as weekly for now
+        const weeklyGoal = 20;
+        const completed = progress.length;
+        const progressPercent = completed > 0 ? Math.min((completed / weeklyGoal) * 100, 100) : 0;
 
-        const weeklyGoal = 20; // 20 activities per week
-        const completed = recentProgress.length;
-        const progressPercent = Math.min((completed / weeklyGoal) * 100, 100);
+        console.log('Progress calculation:', { completed, weeklyGoal, progressPercent });
 
         setWeeklyCompleted(completed);
         setWeeklyProgress(progressPercent);
       } catch (error) {
         console.error('Failed to load progress:', error);
+        setWeeklyCompleted(0);
+        setWeeklyProgress(0);
       } finally {
         setLoading(false);
       }

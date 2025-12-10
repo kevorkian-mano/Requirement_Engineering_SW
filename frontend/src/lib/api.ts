@@ -58,6 +58,20 @@ export const progressAPI = {
   getAchievements: () => api.get('/progress/achievements'),
 };
 
+// Levels API
+export const levelsAPI = {
+  getMyLevel: () => api.get('/levels/me'),
+  getPlayerLevel: (userId: string) => api.get(`/levels/${userId}`),
+  getMyProgress: () => api.get('/levels/me/progress'),
+  getPlayerProgress: (userId: string) => api.get(`/levels/${userId}/progress`),
+  getMyUnlockedGames: () => api.get('/levels/me/unlocked-games'),
+  getPlayerUnlockedGames: (userId: string) => api.get(`/levels/${userId}/unlocked-games`),
+  getMyLockedGames: () => api.get('/levels/me/locked-games'),
+  getPlayerLockedGames: (userId: string) => api.get(`/levels/${userId}/locked-games`),
+  canPlayGame: (gameId: string) => api.get(`/levels/me/can-play/${gameId}`),
+  awardXP: (data: any) => api.post('/levels/me/award-xp', data),
+};
+
 // Monitoring API
 export const monitoringAPI = {
   logActivity: (data: any) => api.post('/monitoring/activity', data),
@@ -89,5 +103,44 @@ export const usersAPI = {
   getChildren: () => api.get('/users/children'),
   getStudents: () => api.get('/users/students'),
   getParent: () => api.get('/users/parent'),
+};
+
+// Courses API
+export const coursesAPI = {
+  // Get all courses
+  getAll: () => api.get('/courses'),
+  
+  // Get course by ID
+  getById: (id: string) => api.get(`/courses/${id}`),
+  
+  // Get teacher's assigned courses
+  getMyCourses: () => api.get('/teachers/secure/my-courses'),
+  
+  // Get course summary (basic info)
+  getCourseSummary: (courseId: string) => api.get(`/teachers/secure/courses/${courseId}/summary`),
+  
+  // Get students enrolled in a course
+  getCourseStudents: (courseId: string) => api.get(`/teachers/secure/courses/${courseId}/students`),
+  
+  // Get specific student's activity in a course
+  getStudentActivity: (courseId: string, studentId: string) => 
+    api.get(`/teachers/secure/courses/${courseId}/students/${studentId}`),
+  
+  // Get course analytics
+  getCourseAnalytics: (courseId: string) => api.get(`/teachers/secure/courses/${courseId}/analytics`),
+  
+  // Get course dashboard summary
+  getCourseDashboard: (courseId: string) => api.get(`/teachers/secure/courses/${courseId}/dashboard`),
+  
+  // Get student health analysis in a course
+  getStudentHealth: (courseId: string, studentId: string, params?: { days?: number }) =>
+    api.get(`/teachers/secure/courses/${courseId}/students/${studentId}/health`, { params }),
+  
+  // Get at-risk students in a course
+  getAtRiskStudents: (courseId: string, params?: { threshold?: number }) =>
+    api.get(`/teachers/secure/courses/${courseId}/at-risk`, { params }),
+  
+  // Get games associated with a course
+  getCourseGames: (courseId: string) => api.get(`/teachers/secure/courses/${courseId}/games`),
 };
 

@@ -322,5 +322,35 @@ export class AlertsService {
       messageArabic,
     );
   }
+
+  async createCyberbullyingAlert(
+    userId: string | Types.ObjectId,
+    type: string,
+    severity: string,
+    title: string,
+    message: string,
+    relatedData?: Record<string, any>,
+  ): Promise<AlertDocument> {
+    // Convert severity string to AlertSeverity enum
+    const severityMap = {
+      low: AlertSeverity.LOW,
+      medium: AlertSeverity.MEDIUM,
+      high: AlertSeverity.HIGH,
+      critical: AlertSeverity.HIGH, // Map critical to high for now
+    };
+
+    const mappedSeverity = severityMap[severity] || AlertSeverity.MEDIUM;
+
+    return this.createAlert(
+      userId.toString(),
+      AlertType.CYBERBULLYING,
+      mappedSeverity,
+      title,
+      message,
+      undefined,
+      undefined,
+      relatedData,
+    );
+  }
 }
 

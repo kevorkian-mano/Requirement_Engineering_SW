@@ -7,6 +7,11 @@ import { GamesModule } from './games/games.module';
 import { ProgressModule } from './progress/progress.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { AchievementsModule } from './achievements/achievements.module';
+import { CyberbullyingModule } from './cyberbullying/cyberbullying.module';
+import { LevelsModule } from './levels/levels.module';
+import { TeachersModule } from './teachers/teachers.module';
+import { CoursesModule } from './courses/courses.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -29,6 +34,11 @@ import { AppController } from './app.controller';
     ProgressModule,
     MonitoringModule,
     AlertsModule,
+    AchievementsModule,
+    CyberbullyingModule,
+    LevelsModule,
+    TeachersModule,
+    CoursesModule,
   ],
 })
 export class AppModule {}

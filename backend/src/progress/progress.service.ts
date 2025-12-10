@@ -5,6 +5,7 @@ import { Progress, ProgressDocument } from '../schemas/progress.schema';
 import { SaveProgressDto } from './dto/save-progress.dto';
 import { UsersService } from '../users/users.service';
 import { GamesService } from '../games/games.service';
+import { LevelProgressionService } from '../levels/level-progression.service';
 import { Achievement, AchievementDocument, UserAchievement, UserAchievementDocument } from '../schemas/achievement.schema';
 import { UserDocument } from '../schemas/user.schema';
 
@@ -16,6 +17,7 @@ export class ProgressService {
     @InjectModel(UserAchievement.name) private userAchievementModel: Model<UserAchievementDocument>,
     private usersService: UsersService,
     private gamesService: GamesService,
+    private levelProgressionService: LevelProgressionService,
   ) {}
 
   async saveProgress(userId: string, saveProgressDto: SaveProgressDto): Promise<ProgressDocument> {
@@ -46,6 +48,44 @@ export class ProgressService {
     // Update user points
     if (pointsEarned > 0) {
       await this.usersService.updatePoints(userId, pointsEarned);
+    }
+
+    // Award XP for completed games and bonuses
+    if (saveProgressDto.isCompleted) {
+      const game = await this.gamesService.findOne(gameId);
+
+      const baseXP = this.levelProgressionService.calculateGameCompletionXP(game.difficulty);
+      const highScoreBonus = this.levelProgressionService.calculateHighScoreBonusXP(
+        saveProgressDto.score,
+      );
+      const noHintsBonus = this.levelProgressionService.calculateNoHintsBonusXP(
+        (saveProgressDto.gameData as any)?.hintsUsed ?? 0,
+      );
+      const speedBonus = this.levelProgressionService.calculateSpeedBonusXP(
+        saveProgressDto.timeSpent,
+      );
+      const consecutiveBonus = await this.levelProgressionService.awardConsecutiveDaysBonus(userId);
+
+      const totalXPAwarded =
+        baseXP + highScoreBonus + noHintsBonus + speedBonus + consecutiveBonus;
+
+      if (totalXPAwarded > 0) {
+        await this.levelProgressionService.awardXP(
+          userId,
+          totalXPAwarded,
+          'game_completion',
+          `Completed ${game.title}`,
+          {
+            difficulty: game.difficulty,
+            score: saveProgressDto.score,
+            timeSeconds: saveProgressDto.timeSpent,
+            hintsUsed: (saveProgressDto.gameData as any)?.hintsUsed ?? 0,
+          },
+        );
+      }
+
+      // Check if completing this game unlocks new difficulty tiers
+      await this.levelProgressionService.unlockNextDifficultyTier(userId);
     }
 
     // Update game average score

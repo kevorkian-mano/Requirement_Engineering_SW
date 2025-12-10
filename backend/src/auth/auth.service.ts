@@ -1,26 +1,39 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument, AgeGroup } from '../schemas/user.schema';
+import { Course, CourseDocument } from '../schemas/course.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { LevelProgressionService } from '../levels/level-progression.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
     private jwtService: JwtService,
+    private levelProgressionService: LevelProgressionService,
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, age, ...rest } = registerDto;
+    const { email, password, age, courseIds, ...rest } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.userModel.findOne({ email });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
+    }
+
+    // Validate courses if teacher is registering
+    if (registerDto.role === 'teacher' && courseIds && courseIds.length > 0) {
+      const courseObjectIds = courseIds.map(id => new Types.ObjectId(id));
+      const courses = await this.courseModel.find({ _id: { $in: courseObjectIds } });
+      if (courses.length !== courseObjectIds.length) {
+        throw new BadRequestException('One or more course IDs are invalid');
+      }
     }
 
     // Calculate age group from age if provided
@@ -40,13 +53,21 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user = new this.userModel({
+    // Prepare user data
+    const userData: any = {
       email,
       password: hashedPassword,
       ageGroup,
       ...rest,
-    });
+    };
+
+    // Add courseIds if teacher
+    if (registerDto.role === 'teacher' && courseIds && courseIds.length > 0) {
+      userData.courseIds = courseIds.map(id => new Types.ObjectId(id));
+    }
+
+    // Create user
+    const user = new this.userModel(userData);
 
     // Link child to parent if parentId is provided
     if (registerDto.parentId && registerDto.role === 'child') {
@@ -61,7 +82,25 @@ export class AuthService {
       }
     }
 
+    // Add teacher to courses if teacher registering
+    if (registerDto.role === 'teacher' && courseIds && courseIds.length > 0) {
+      await Promise.all(
+        courseIds.map((courseId) =>
+          this.courseModel.findByIdAndUpdate(
+            courseId,
+            { $addToSet: { teacherIds: user._id } },
+            { new: true },
+          ),
+        ),
+      );
+    }
+
     await user.save();
+
+    // Initialize player level for children
+    if (registerDto.role === 'child' && ageGroup) {
+      await this.levelProgressionService.initializePlayerLevel(user._id.toString(), ageGroup);
+    }
 
     // Remove password from response
     const userObject = user.toObject();

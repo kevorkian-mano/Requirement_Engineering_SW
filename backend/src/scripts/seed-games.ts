@@ -337,6 +337,30 @@ async function bootstrap() {
       pointsReward: 95,
       isActive: true,
     },
+    // Java Basics Game
+    {
+      title: 'Java Basics',
+      titleArabic: 'رحلة جافا',
+      description: 'Learn Java programming fundamentals through interactive coding challenges! Master variables, loops, and object-oriented concepts.',
+      descriptionArabic: 'تعلم أساسيات برمجة جافا من خلال تحديات البرمجة التفاعلية! أتقن المتغيرات والحلقات والمفاهيم الموجهة للكائنات.',
+      category: GameCategory.CODING,
+      difficulty: DifficultyLevel.HARD,
+      ageGroups: [AgeGroup.AGES_9_12],
+      pointsReward: 115,
+      isActive: true,
+    },
+    // Logic Gates Master Game
+    {
+      title: 'Logic Gates Master',
+      titleArabic: 'بوابات المنطق الرقمي',
+      description: 'Master digital logic with interactive logic gates! Learn AND, OR, NOT, NAND gates and build circuits to solve puzzles.',
+      descriptionArabic: 'أتقن المنطق الرقمي من خلال بوابات المنطق التفاعلية! تعلم بوابات AND و OR و NOT و NAND وابنِ الدوائر لحل الألغاز.',
+      category: GameCategory.CODING,
+      difficulty: DifficultyLevel.HARD,
+      ageGroups: [AgeGroup.AGES_9_12],
+      pointsReward: 120,
+      isActive: true,
+    },
   ];
 
   console.log('Seeding games...');

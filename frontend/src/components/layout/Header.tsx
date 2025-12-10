@@ -30,12 +30,13 @@ export function Header({ language, user, onLanguageChange }: HeaderProps) {
           }
         } catch (error) {
           console.error('Failed to load parent info:', error);
+          // Don't fail the whole app if parent info fails to load
         }
       }
     };
 
     const loadAchievements = async () => {
-      if (user?._id) {
+      if (user?._id && user?.role === 'child') {
         try {
           const res = await progressAPI.getAchievements();
           const achievements = res.data || [];
@@ -43,12 +44,15 @@ export function Header({ language, user, onLanguageChange }: HeaderProps) {
           setAchievementsCount(unlockedCount);
         } catch (error) {
           console.error('Failed to load achievements:', error);
+          // Don't fail the whole app if achievements fail to load
         }
       }
     };
 
-    loadParentInfo();
-    loadAchievements();
+    if (user) {
+      loadParentInfo();
+      loadAchievements();
+    }
   }, [user]);
 
   const texts = {
@@ -149,13 +153,13 @@ export function Header({ language, user, onLanguageChange }: HeaderProps) {
             <p className="text-center text-3xl text-white">{level}</p>
           </div>
 
-          {/* Achievements */}
+          {/* Stars (Progression) */}
           <div className="bg-gradient-to-br from-[#FF69B4] to-[#FF6B6B] rounded-2xl px-6 py-4 min-w-[140px] shadow-md transform hover:scale-105 transition-transform">
             <div className="flex items-center gap-2 justify-center mb-1">
               <Medal className="w-5 h-5 text-white" />
               <span className="text-white">⭐</span>
             </div>
-            <p className="text-center text-3xl text-white">{achievementsCount}</p>
+            <p className="text-center text-3xl text-white">{Math.max(0, level - 1)}</p>
           </div>
         </div>
       </div>

@@ -20,7 +20,14 @@ export class ProgressController {
 
   @Get()
   async getUserProgress(@CurrentUser() user: UserDocument) {
-    return this.progressService.getUserProgress(user._id.toString());
+    const progress = await this.progressService.getUserProgress(user._id.toString());
+    console.log(`[Progress Controller] User ${user._id} progress:`, progress.map(p => ({
+      _id: p._id,
+      gameId: p.gameId,
+      isCompleted: p.isCompleted,
+      score: p.score,
+    })));
+    return progress;
   }
 
   @Get('leaderboard')

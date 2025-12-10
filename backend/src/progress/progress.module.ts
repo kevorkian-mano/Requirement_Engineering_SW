@@ -6,6 +6,7 @@ import { Progress, ProgressSchema } from '../schemas/progress.schema';
 import { Achievement, AchievementSchema, UserAchievement, UserAchievementSchema } from '../schemas/achievement.schema';
 import { UsersModule } from '../users/users.module';
 import { GamesModule } from '../games/games.module';
+import { LevelsModule } from '../levels/levels.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { GamesModule } from '../games/games.module';
     ]),
     UsersModule,
     GamesModule,
+    LevelsModule,
   ],
   controllers: [ProgressController],
   providers: [ProgressService],

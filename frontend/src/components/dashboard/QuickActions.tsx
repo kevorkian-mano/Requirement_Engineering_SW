@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, Shield, X } from 'lucide-react';
-import { gamesAPI, progressAPI } from '@/src/lib/api';
+import { gamesAPI, progressAPI, levelsAPI } from '@/src/lib/api';
 import { useAuthStore } from '@/src/store/authStore';
 import { Game } from '@/src/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src/components/ui/card';
@@ -31,10 +31,18 @@ export function QuickActions({ language }: QuickActionsProps) {
     if (!user?._id || !user?.ageGroup) return;
 
     try {
-      const gamesRes = await gamesAPI.getAll({ ageGroup: user.ageGroup });
-      const games = gamesRes.data || [];
+      // Get unlocked games only
+      const unlockedRes = await levelsAPI.getMyUnlockedGames();
+      const unlockedGameIds = new Set<string>(unlockedRes.data?.unlockedGames || []);
       
-      if (games.length > 0) {
+      // Get all games for user's age group
+      const gamesRes = await gamesAPI.getAll({ ageGroup: user.ageGroup });
+      const allGames = gamesRes.data || [];
+      
+      // Filter to only unlocked games
+      const unlockedGames = allGames.filter((g: Game) => unlockedGameIds.has(g._id));
+      
+      if (unlockedGames.length > 0) {
         // Get user progress to find games not yet completed
         const progressRes = await progressAPI.getUserProgress();
         const progress = progressRes.data || [];
@@ -47,11 +55,11 @@ export function QuickActions({ language }: QuickActionsProps) {
             })
         );
 
-        // Find a game that's not completed yet, or pick a random one
-        const uncompletedGames = games.filter((g: Game) => !completedGameIds.has(g._id));
-        const gameToRecommend = uncompletedGames.length > 0 
-          ? uncompletedGames[Math.floor(Math.random() * uncompletedGames.length)]
-          : games[Math.floor(Math.random() * games.length)];
+        // Find an unlocked game that's not completed yet, or pick a random unlocked one
+        const uncompletedUnlockedGames = unlockedGames.filter((g: Game) => !completedGameIds.has(g._id));
+        const gameToRecommend = uncompletedUnlockedGames.length > 0 
+          ? uncompletedUnlockedGames[Math.floor(Math.random() * uncompletedUnlockedGames.length)]
+          : unlockedGames[Math.floor(Math.random() * unlockedGames.length)];
 
         setDailyChallengeGame(gameToRecommend);
       }
@@ -224,17 +232,17 @@ export function QuickActions({ language }: QuickActionsProps) {
 
       {/* Daily Challenge Dialog */}
       <Dialog open={showDailyChallenge} onOpenChange={setShowDailyChallenge}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle className="text-2xl">{t.challengeTitle}</DialogTitle>
-            <DialogDescription>{t.challengeDescription}</DialogDescription>
+            <DialogTitle className="text-2xl text-gray-900">{t.challengeTitle}</DialogTitle>
+            <DialogDescription className="text-gray-600">{t.challengeDescription}</DialogDescription>
           </DialogHeader>
           {dailyChallengeGame ? (
             <div className="space-y-4">
-              <Card>
+              <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
                 <CardHeader>
-                  <CardTitle>{dailyChallengeGame.title}</CardTitle>
-                  <CardDescription>{dailyChallengeGame.description}</CardDescription>
+                  <CardTitle className="text-gray-900">{dailyChallengeGame.title}</CardTitle>
+                  <CardDescription className="text-gray-700">{dailyChallengeGame.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -259,13 +267,14 @@ export function QuickActions({ language }: QuickActionsProps) {
                 <Button 
                   onClick={handlePlayChallenge} 
                   disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                 >
                   {loading ? '...' : t.playNow}
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowDailyChallenge(false)}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-100"
                 >
                   {t.close}
                 </Button>
@@ -281,16 +290,16 @@ export function QuickActions({ language }: QuickActionsProps) {
 
       {/* Safety Tips Dialog */}
       <Dialog open={showSafetyTips} onOpenChange={setShowSafetyTips}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle className="text-2xl">{t.safetyTitle}</DialogTitle>
-            <DialogDescription>{t.safetyDescription}</DialogDescription>
+            <DialogTitle className="text-2xl text-gray-900">{t.safetyTitle}</DialogTitle>
+            <DialogDescription className="text-gray-600">{t.safetyDescription}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             {t.tips.map((tip, index) => (
-              <Card key={index}>
+              <Card key={index} className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">{tip.title}</CardTitle>
+                  <CardTitle className="text-lg text-gray-900">{tip.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-700">{tip.content}</p>
@@ -299,7 +308,10 @@ export function QuickActions({ language }: QuickActionsProps) {
             ))}
           </div>
           <div className="flex justify-end mt-4">
-            <Button onClick={() => setShowSafetyTips(false)}>
+            <Button 
+              onClick={() => setShowSafetyTips(false)}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
               {t.close}
             </Button>
           </div>

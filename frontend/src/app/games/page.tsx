@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/src/store/authStore';
-import { gamesAPI, progressAPI } from '@/src/lib/api';
+import { gamesAPI, progressAPI, levelsAPI } from '@/src/lib/api';
 import { Game, GameCategory, AgeGroup, Progress } from '@/src/types';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent } from '@/src/components/ui/card';
@@ -12,7 +12,7 @@ import { Input } from '@/src/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/src/components/ui/select';
 import { GameCard } from '@/src/components/games/GameCard';
 import { toast } from 'sonner';
-import { Search, Filter, ArrowLeft } from 'lucide-react';
+import { Search, Filter, ArrowLeft, Lock } from 'lucide-react';
 
 export default function GamesPage() {
   const router = useRouter();
@@ -20,13 +20,35 @@ export default function GamesPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
+  const [unlockedGameIds, setUnlockedGameIds] = useState<Set<string>>(new Set());
+  const [playerLevel, setPlayerLevel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedGameLoading, setSelectedGameLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Wait for Zustand to hydrate from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasStoredAuth = localStorage.getItem('auth-storage') || localStorage.getItem('user');
+      if (hasStoredAuth) {
+        const timer = setTimeout(() => {
+          setIsHydrated(true);
+        }, 100);
+        return () => clearTimeout(timer);
+      } else {
+        setIsHydrated(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
+    // Only proceed after hydration is complete
+    if (!isHydrated) return;
+
     if (!user) {
       router.push('/login');
       return;
@@ -34,11 +56,41 @@ export default function GamesPage() {
 
     loadGames();
     loadProgress();
-  }, [user, router]);
+    loadPlayerLevel();
+  }, [user, router, isHydrated]);
 
   useEffect(() => {
     filterGames();
-  }, [games, searchQuery, selectedCategory, selectedDifficulty]);
+  }, [games, searchQuery, selectedCategory, selectedDifficulty, unlockedGameIds]);
+
+  const loadPlayerLevel = async () => {
+    try {
+      if (user?.role === 'child') {
+        // Check if user is authenticated
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.warn('No auth token found');
+          return;
+        }
+        
+        const response = await levelsAPI.getMyLevel();
+        setPlayerLevel(response.data);
+        
+        // Get unlocked games
+        const unlockedResponse = await levelsAPI.getMyUnlockedGames();
+        const unlockedIds = new Set<string>(
+          (unlockedResponse.data?.unlockedGames || []).map((id: string) => id)
+        );
+        console.log('Loaded unlocked games:', unlockedIds.size, 'games');
+        setUnlockedGameIds(unlockedIds);
+      }
+    } catch (error: any) {
+      console.error('Level loading error:', error);
+      if (error.response?.status === 401) {
+        console.error('Authentication failed - redirecting to login');
+      }
+    }
+  };
 
   const loadGames = async () => {
     try {
@@ -69,11 +121,28 @@ export default function GamesPage() {
     try {
       if (user?.role === 'child') {
         const response = await progressAPI.getUserProgress();
+        console.log('Progress API response:', response);
         const progressMap: Record<string, Progress> = {};
-        (response.data || []).forEach((p: Progress) => {
-          const gameId = typeof p.gameId === 'string' ? p.gameId : (p.gameId as Game)._id;
+        (response.data || []).forEach((p: any) => {
+          // Handle both cases: gameId as string or as populated object
+          let gameId: string;
+          if (typeof p.gameId === 'string') {
+            gameId = p.gameId;
+          } else if (p.gameId && typeof p.gameId === 'object' && p.gameId._id) {
+            gameId = p.gameId._id.toString ? p.gameId._id.toString() : p.gameId._id;
+          } else {
+            console.warn('Invalid gameId:', p.gameId);
+            return;
+          }
+          
+          console.log(`Mapping progress for game ${gameId}:`, {
+            isCompleted: p.isCompleted,
+            score: p.score,
+            playCount: p.playCount,
+          });
           progressMap[gameId] = p;
         });
+        console.log('Final progress map:', progressMap);
         setProgress(progressMap);
       }
     } catch (error: any) {
@@ -110,11 +179,19 @@ export default function GamesPage() {
   };
 
   const handleGameClick = async (game: Game) => {
+    // Check if game is locked
+    if (user?.role === 'child' && !unlockedGameIds.has(game._id)) {
+      toast.error(language === 'en' ? 'This game is locked. Level up to unlock!' : 'هذه اللعبة مقفلة. ارتقِ مستوى لفتحها!');
+      return;
+    }
+
     try {
+      setSelectedGameLoading(true);
       await gamesAPI.play(game._id);
       router.push(`/games/${game._id}`);
     } catch (error: any) {
       toast.error('Failed to start game');
+      setSelectedGameLoading(false);
     }
   };
 
@@ -186,6 +263,12 @@ export default function GamesPage() {
       plays: 'plays',
       back: 'Back to Dashboard',
       filter: 'Filters',
+      progressionGuide: 'Progression Guide',
+      level1: 'Level 1: All Easy Games',
+      level2: 'Level 2: All Medium Games',
+      level3: 'Level 3: All Hard Games',
+      unlockHint: 'Complete 1 game of current level to unlock the next!',
+      currentLevel: 'Current Level',
     },
     ar: {
       title: 'الألعاب',
@@ -201,6 +284,12 @@ export default function GamesPage() {
       plays: 'مرات اللعب',
       back: 'العودة إلى لوحة التحكم',
       filter: 'المرشحات',
+      progressionGuide: 'دليل التقدم',
+      level1: 'المستوى 1: جميع الألعاب السهلة',
+      level2: 'المستوى 2: جميع الألعاب المتوسطة',
+      level3: 'المستوى 3: جميع الألعاب الصعبة',
+      unlockHint: 'أكمل لعبة واحدة من المستوى الحالي لفتح المستوى التالي!',
+      currentLevel: 'المستوى الحالي',
     },
   };
 
@@ -285,6 +374,7 @@ export default function GamesPage() {
           </CardContent>
         </Card>
 
+
         {/* Games Grid */}
         {filteredGames.length === 0 ? (
           <Card className="bg-white">
@@ -299,14 +389,35 @@ export default function GamesPage() {
               const isCompleted = gameProgress?.isCompleted || false;
               const bestScore = gameProgress?.score || 0;
               const playCount = gameProgress?.playCount || 0;
+              const isLocked = user?.role === 'child' && !unlockedGameIds.has(game._id);
+
+              console.log(`Game [${game.title}]:`, {
+                gameId: game._id,
+                gameProgress,
+                isCompleted,
+                isLocked,
+              });
 
               return (
-                <div key={game._id} onClick={() => handleGameClick(game)}>
-                  <Card className="h-full hover:shadow-xl transition-shadow cursor-pointer bg-white">
-                    <CardContent className="p-6">
+                <div 
+                  key={game._id} 
+                  onClick={() => !isLocked && handleGameClick(game)}
+                  className={isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                >
+                  <Card className={`h-full transition-shadow ${!isLocked ? 'hover:shadow-xl' : ''} bg-white relative`}>
+                    {isLocked && (
+                      <div className="absolute inset-0 bg-gray-900 bg-opacity-40 rounded-lg flex flex-col items-center justify-center z-20">
+                        <Lock className="w-12 h-12 text-white mb-2" />
+                        <span className="text-white font-bold text-lg">{language === 'en' ? 'LOCKED' : 'مقفل'}</span>
+                        <span className="text-white text-sm mt-1">
+                          {language === 'en' ? 'Level up to unlock' : 'ارتقِ مستوى لفتح'}
+                        </span>
+                      </div>
+                    )}
+                    <CardContent className={`p-6 ${isLocked ? 'pointer-events-none' : ''}`}>
                       <div className="flex items-start justify-between mb-4">
                         <div
-                          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-md"
+                          className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-md ${isLocked ? 'grayscale opacity-50' : ''}`}
                           style={{ backgroundColor: getGameColor(game.category) + '20' }}
                         >
                           {getGameIcon(game.category)}
@@ -316,26 +427,26 @@ export default function GamesPage() {
                         )}
                       </div>
 
-                      <h3 className="text-xl font-bold mb-2">
+                      <h3 className={`text-xl font-bold mb-2 ${isLocked ? 'text-gray-400' : ''}`}>
                         {language === 'ar' ? game.titleArabic || game.title : game.title}
                       </h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      <p className={`text-sm mb-4 line-clamp-2 ${isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
                         {language === 'ar' ? game.descriptionArabic || game.description : game.description}
                       </p>
 
                       <div className="flex items-center gap-2 mb-4 flex-wrap">
-                        <Badge variant="outline">
+                        <Badge variant="outline" className={isLocked ? 'bg-gray-100 text-gray-500' : ''}>
                           {getCategoryName(game.category, language)}
                         </Badge>
-                        <Badge variant="outline">
+                        <Badge variant="outline" className={isLocked ? 'bg-gray-100 text-gray-500' : ''}>
                           {language === 'ar' ? getDifficultyAr(game.difficulty) : game.difficulty}
                         </Badge>
-                        <Badge variant="outline" className="bg-yellow-100">
+                        <Badge variant="outline" className={`${isLocked ? 'bg-gray-100 text-gray-500' : 'bg-yellow-100'}`}>
                           ⭐ {game.pointsReward} {t.points}
                         </Badge>
                       </div>
 
-                      {gameProgress && (
+                      {gameProgress && !isLocked && (
                         <div className="mt-4 pt-4 border-t">
                           <div className="flex justify-between text-sm text-gray-600">
                             <span>{language === 'en' ? 'Best Score' : 'أفضل نتيجة'}: {bestScore}</span>
@@ -357,9 +468,13 @@ export default function GamesPage() {
                       <div className="mt-4">
                         <Button
                           className="w-full"
-                          style={{ backgroundColor: getGameColor(game.category) }}
+                          disabled={isLocked}
+                          style={{ 
+                            backgroundColor: isLocked ? '#ccc' : getGameColor(game.category),
+                            cursor: isLocked ? 'not-allowed' : 'pointer'
+                          }}
                         >
-                          {language === 'en' ? 'Play Now' : 'العب الآن'}
+                          {isLocked ? (language === 'en' ? 'Locked' : 'مقفل') : (language === 'en' ? 'Play Now' : 'العب الآن')}
                         </Button>
                       </div>
                     </CardContent>
@@ -367,6 +482,16 @@ export default function GamesPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Loading Overlay */}
+        {selectedGameLoading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-white border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-white text-xl font-semibold">{language === 'en' ? 'Loading Game...' : 'تحميل اللعبة...'}</p>
+            </div>
           </div>
         )}
       </div>

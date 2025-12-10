@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/src/lib/api';
 import { useAuthStore } from '@/src/store/authStore';
@@ -26,6 +26,7 @@ export default function RegisterPage() {
     age: '',
     dateOfBirth: '',
     parentId: '',
+    courseIds: [] as string[],
   });
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -58,7 +59,7 @@ export default function RegisterPage() {
         return;
       }
     }
-    
+
     setLoading(true);
 
     try {
@@ -80,7 +81,7 @@ export default function RegisterPage() {
           registerData.ageGroup = ageGroup;
         }
       }
-      
+
       if (formData.dateOfBirth) {
         registerData.dateOfBirth = formData.dateOfBirth;
       }
@@ -179,9 +180,11 @@ export default function RegisterPage() {
                 <SelectContent className="bg-white">
                   <SelectItem value="child" className="text-base">Child</SelectItem>
                   <SelectItem value="parent" className="text-base">Parent</SelectItem>
-                  <SelectItem value="teacher" className="text-base">Teacher</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-600 mt-1">
+                Teachers: Please use the login page. Contact admin for account setup.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -299,6 +302,8 @@ export default function RegisterPage() {
                 </div>
               </div>
             )}
+
+
 
             <Button 
               type="submit" 

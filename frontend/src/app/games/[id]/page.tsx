@@ -19,6 +19,8 @@ import { MultiplicationMasterGame } from '@/src/features/games/MultiplicationMas
 import { ForceMotionLabGame } from '@/src/features/games/ForceMotionLabGame';
 import { StoryBuilderGame } from '@/src/features/games/StoryBuilderGame';
 import { PharaohQuestGame } from '@/src/features/games/PharaohQuestGame';
+import { JavaBasicsGame } from '@/src/features/games/JavaBasicsGame';
+import { LogicGatesMasterGame } from '@/src/features/games/LogicGatesMasterGame';
 
 export default function GamePage() {
   const router = useRouter();
@@ -35,12 +37,24 @@ export default function GamePage() {
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    // Only redirect if explicitly not authenticated
+    const checkAuth = async () => {
+      // Check if user exists or allow page to load if already on the page
+      if (!user) {
+        // Add a small delay to check if user data is loading
+        const timer = setTimeout(() => {
+          if (!user) {
+            router.push('/login');
+          }
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    };
 
+    checkAuth();
     loadGame();
+
     return () => {
       if (gameRef.current) {
         gameRef.current.destroy(true);
@@ -51,7 +65,19 @@ export default function GamePage() {
   const loadGame = async () => {
     try {
       const response = await gamesAPI.getById(gameId);
-      setGame(response.data);
+      const gameData = response.data;
+      
+      // Check if this is a standalone game and redirect
+      const title = gameData.title.toLowerCase();
+      if (title.includes('pattern play') || title.includes('لعبة الأنماط')) {
+        router.replace('/games/pattern-play');
+        return;
+      } else if (title.includes('memory match') || title.includes('مطابقة الذاكرة')) {
+        router.replace('/games/memory-match');
+        return;
+      }
+      
+      setGame(gameData);
     } catch (error: any) {
       console.error('Failed to load game:', error);
     } finally {
@@ -71,6 +97,10 @@ export default function GamePage() {
       return GameDeveloperGame;
     } else if (title.includes('pyramid') || title.includes('باني الأهرامات')) {
       return PyramidBuilderGame;
+    } else if (title.includes('java basics') || title.includes('رحلة جافا')) {
+      return JavaBasicsGame;
+    } else if (title.includes('logic gates') || title.includes('بوابات المنطق')) {
+      return LogicGatesMasterGame;
     }
     // Ages 3-5 games
     else if (title.includes('number adventure') || title.includes('مغامرة الأرقام')) {
@@ -270,8 +300,11 @@ export default function GamePage() {
 
   if (loading || !game) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white">Loading game...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-xl font-semibold">Loading game...</p>
+        </div>
       </div>
     );
   }
