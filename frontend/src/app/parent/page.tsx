@@ -148,7 +148,7 @@ export default function ParentDashboard() {
               </SelectTrigger>
               <SelectContent>
                 {children.length === 0 ? (
-                  <SelectItem value="" disabled>No children found</SelectItem>
+                    <SelectItem value="none" disabled>No children found</SelectItem>
                 ) : (
                   children.map((child) => (
                     <SelectItem key={child._id} value={child._id}>

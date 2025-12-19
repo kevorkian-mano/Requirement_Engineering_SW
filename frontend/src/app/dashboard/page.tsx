@@ -150,7 +150,7 @@ export default function DashboardPage() {
 
   const handleGameClick = async (game: Game) => {
     // Check if game is locked
-    if (user?.role === 'child' && !unlockedGameIds.has(game._id)) {
+    if (user?.role === 'child' && game.difficulty !== 'easy' && !unlockedGameIds.has(String(game._id))) {
       toast.error(language === 'en' ? 'This game is locked. Level up to unlock!' : 'هذه اللعبة مقفلة. ارتقِ مستوى لفتحها!');
       return;
     }
@@ -250,7 +250,7 @@ export default function DashboardPage() {
                 {games.slice(0, 4).map((game) => {
                   // Get progress for this game if available
                   const gameProgress = progress[game._id];
-                  const isLocked = user?.role === 'child' && !unlockedGameIds.has(game._id);
+                  const isLocked = user?.role === 'child' && game.difficulty !== 'easy' && !unlockedGameIds.has(String(game._id));
                   
                   return (
                     <div key={game._id} onClick={() => !isLocked && handleGameClick(game)} className={isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}>

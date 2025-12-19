@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Button } from '@/src/components/ui/button';
-import { progressAPI } from '@/src/lib/api';
+import { authAPI, gamesAPI, progressAPI } from '@/src/lib/api';
 import { useAuthStore } from '@/src/store/authStore';
 import { toast } from 'sonner';
 import { ArrowLeft, Star, Trophy } from 'lucide-react';
 
 // Define card items
 const CARD_ITEMS = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮'];
-const GAME_ID = '6939f219b389680c73372fb2'; // Memory Match game ID from play-learn-protect
+// Resolve game ID dynamically from backend to avoid mismatches after reseeding
+// Title must match the seeded game title exactly: 'Memory Match'
+const GAME_TITLE = 'Memory Match';
 
 interface CardType {
   id: number;
@@ -22,7 +24,8 @@ interface CardType {
 
 export default function MemoryMatchGame() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
+  const [gameId, setGameId] = useState<string | null>(null);
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
   const [cards, setCards] = useState<CardType[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
@@ -38,6 +41,27 @@ export default function MemoryMatchGame() {
   useEffect(() => {
     initializeGame();
   }, []);
+
+  useEffect(() => {
+    // Fetch the game ID by title once the user is available
+    const resolveGameId = async () => {
+      try {
+        const res = await gamesAPI.getAll();
+        const allGames = res.data || [];
+        const match = allGames.find((g: any) => g.title === GAME_TITLE);
+        if (match && match._id) {
+          const id = typeof match._id === 'string' ? match._id : match._id.toString();
+          setGameId(id);
+          console.log(`[Memory Match] Resolved gameId:`, id);
+        } else {
+          console.warn(`[Memory Match] Game with title '${GAME_TITLE}' not found.`);
+        }
+      } catch (e) {
+        console.error('[Memory Match] Failed to resolve gameId:', e);
+      }
+    };
+    resolveGameId();
+  }, [user]);
 
   useEffect(() => {
     if (timeLeft > 0 && !gameOver && !gameWon) {
@@ -168,10 +192,14 @@ export default function MemoryMatchGame() {
 
     // Save progress
     try {
+      if (!gameId) {
+        console.warn('[Memory Match] Missing gameId, skipping progress save.');
+        return;
+      }
       const timeSpent = Math.floor((Date.now() - startTime) / 1000);
       const finalScore = won ? score + (timeLeft * 2) : score;
       const progressData = {
-        gameId: GAME_ID,
+        gameId: gameId,
         score: finalScore,
         isCompleted: won,
         timeSpent,
@@ -185,6 +213,19 @@ export default function MemoryMatchGame() {
       
       if (won) {
         toast.success(language === 'en' ? '✅ Progress saved! Game completed!' : '✅ تم حفظ التقدم! اكتملت اللعبة!');
+        // Refresh user points from backend; fallback to local increment
+        try {
+          const profile = await authAPI.getProfile();
+          const serverPoints = profile.data?.points;
+          if (typeof serverPoints === 'number') {
+            updateUser({ points: serverPoints });
+          } else {
+            updateUser({ points: (user?.points || 0) + progressData.pointsEarned });
+          }
+        } catch (e) {
+          console.warn('[Memory Match] Failed to refresh profile, updating points locally.');
+          updateUser({ points: (user?.points || 0) + progressData.pointsEarned });
+        }
       }
     } catch (error: any) {
       console.error('Failed to save progress:', error);

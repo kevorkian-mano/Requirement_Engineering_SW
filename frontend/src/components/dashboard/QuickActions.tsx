@@ -31,29 +31,66 @@ export function QuickActions({ language }: QuickActionsProps) {
     if (!user?._id || !user?.ageGroup) return;
 
     try {
-      // Get unlocked games only
-      const unlockedRes = await levelsAPI.getMyUnlockedGames();
-      const unlockedGameIds = new Set<string>(unlockedRes.data?.unlockedGames || []);
+      // Build unlocked set from multiple sources for robustness
+      const levelRes = await levelsAPI.getMyLevel().catch((e) => {
+        console.error('getMyLevel failed:', e);
+        return { data: {} } as any;
+      });
+      const unlockedRes = await levelsAPI.getMyUnlockedGames().catch((e) => {
+        console.error('getMyUnlockedGames failed:', e);
+        return { data: {} } as any;
+      });
+
+      const levelUnlocked: string[] = Array.isArray(levelRes.data?.unlockedGames)
+        ? (levelRes.data.unlockedGames as string[])
+        : [];
+      const endpointUnlocked: string[] = Array.isArray(unlockedRes.data?.unlockedGames)
+        ? (unlockedRes.data.unlockedGames as string[])
+        : [];
+      const detailIds: string[] = Array.isArray(unlockedRes.data?.gameDetails)
+        ? (unlockedRes.data.gameDetails as any[])
+            .map((g) => (g && g._id ? (typeof g._id === 'string' ? g._id : g._id.toString()) : null))
+            .filter(Boolean) as string[]
+        : [];
+
+      const unlockedGameIds = new Set<string>([
+        ...levelUnlocked.map(String),
+        ...endpointUnlocked.map(String),
+        ...detailIds.map(String),
+      ]);
+      console.log('[QuickActions] Unlocked IDs count:', unlockedGameIds.size);
       
       // Get all games for user's age group
       const gamesRes = await gamesAPI.getAll({ ageGroup: user.ageGroup });
-      const allGames = gamesRes.data || [];
+      const allGames: Game[] = gamesRes.data || [];
       
-      // Filter to only unlocked games
-      const unlockedGames = allGames.filter((g: Game) => unlockedGameIds.has(g._id));
+      // If unlocked set is empty, treat EASY games as unlocked (UI fallback)
+      const easyFallbackIds = new Set<string>(
+        allGames.filter((g) => g.difficulty === 'easy').map((g) => String(g._id))
+      );
+      const effectiveUnlockedIds = unlockedGameIds.size > 0 ? unlockedGameIds : easyFallbackIds;
+      
+      // Filter to only unlocked games (string match)
+      const unlockedGames = allGames.filter((g: Game) => effectiveUnlockedIds.has(String(g._id)));
+      console.log('[QuickActions] Unlocked games available:', unlockedGames.length);
       
       if (unlockedGames.length > 0) {
         // Get user progress to find games not yet completed
         const progressRes = await progressAPI.getUserProgress();
         const progress = progressRes.data || [];
-        const completedGameIds = new Set(
+        const completedGameIds = new Set<string>(
           progress
-            .filter((p: any) => p.isCompleted)
+            .filter((p: any) => p && p.isCompleted)
             .map((p: any) => {
-              const gameId = typeof p.gameId === 'string' ? p.gameId : (p.gameId as any)?._id;
-              return gameId;
+              if (typeof p.gameId === 'string') return p.gameId;
+              if (p.gameId && typeof p.gameId === 'object' && p.gameId._id) {
+                return p.gameId._id.toString ? p.gameId._id.toString() : p.gameId._id;
+              }
+              return null;
             })
+            .filter(Boolean)
         );
+        console.log('[QuickActions] Completed game IDs count:', completedGameIds.size);
 
         // Find an unlocked game that's not completed yet, or pick a random unlocked one
         const uncompletedUnlockedGames = unlockedGames.filter((g: Game) => !completedGameIds.has(g._id));
@@ -62,6 +99,7 @@ export function QuickActions({ language }: QuickActionsProps) {
           : unlockedGames[Math.floor(Math.random() * unlockedGames.length)];
 
         setDailyChallengeGame(gameToRecommend);
+        console.log('[QuickActions] Daily challenge selected:', gameToRecommend?.title, gameToRecommend?._id);
       }
     } catch (error) {
       console.error('Failed to load daily challenge:', error);

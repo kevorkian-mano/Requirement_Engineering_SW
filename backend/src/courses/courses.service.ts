@@ -64,9 +64,13 @@ export class CoursesService {
       throw new ConflictException(`Course with code "${createCourseDto.code}" already exists`);
     }
 
-    // Convert teacher IDs to ObjectIds
+    // Convert teacher IDs to ObjectIds and dedupe
     const teacherIds = createCourseDto.teacherIds
-      ? createCourseDto.teacherIds.map(id => new Types.ObjectId(id))
+      ? Array.from(
+          new Set(
+            createCourseDto.teacherIds.map((id) => new Types.ObjectId(id).toString()),
+          ),
+        ).map((idStr) => new Types.ObjectId(idStr))
       : [];
 
     // Validate game IDs exist
@@ -78,8 +82,10 @@ export class CoursesService {
       }
     }
 
+    // Convert game IDs to ObjectIds and dedupe
     const gameIds = createCourseDto.gameIds
-      ? createCourseDto.gameIds.map(id => new Types.ObjectId(id))
+      ? Array.from(new Set(createCourseDto.gameIds.map(String)))
+          .map((id) => new Types.ObjectId(id))
       : [];
 
     const course = new this.courseModel({
@@ -168,31 +174,22 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException(`Course with ID "${id}" not found`);
     }
-
-    // If updating code, check if new code already exists
-    if (updateCourseDto.name && updateCourseDto.name !== course.code) {
-      const existingCourse = await this.courseModel.findOne({
-        code: updateCourseDto.name,
-        _id: { $ne: id },
-      });
-      if (existingCourse) {
-        throw new ConflictException(`Course code already exists`);
-      }
-    }
-
-    // Validate game IDs if provided
+    
+    // Validate and convert game IDs if provided
     if (updateCourseDto.gameIds && updateCourseDto.gameIds.length > 0) {
-      const gameIds = updateCourseDto.gameIds.map(gid => new Types.ObjectId(gid));
-      const games = await this.gameModel.find({ _id: { $in: gameIds } });
-      if (games.length !== gameIds.length) {
+      const gameObjectIds = Array.from(new Set(updateCourseDto.gameIds.map(String)))
+        .map((gid) => new Types.ObjectId(gid));
+      const games = await this.gameModel.find({ _id: { $in: gameObjectIds } });
+      if (games.length !== gameObjectIds.length) {
         throw new BadRequestException('One or more game IDs are invalid');
       }
-      updateCourseDto.gameIds = updateCourseDto.gameIds;
+      (updateCourseDto as any).gameIds = gameObjectIds as any;
     }
 
-    // Convert teacher IDs to ObjectIds
-    if (updateCourseDto.teacherIds) {
-      updateCourseDto.teacherIds = updateCourseDto.teacherIds;
+    // Convert teacher IDs to ObjectIds if provided
+    if (updateCourseDto.teacherIds && updateCourseDto.teacherIds.length > 0) {
+      (updateCourseDto as any).teacherIds = Array.from(new Set(updateCourseDto.teacherIds.map(String)))
+        .map((id) => new Types.ObjectId(id)) as any;
     }
 
     const updated = await this.courseModel.findByIdAndUpdate(
@@ -221,7 +218,8 @@ export class CoursesService {
     }
 
     const teacherObjectId = new Types.ObjectId(teacherId);
-    if (course.teacherIds.includes(teacherObjectId)) {
+    const alreadyAssigned = course.teacherIds.some((id) => id.toString() === teacherObjectId.toString());
+    if (alreadyAssigned) {
       throw new BadRequestException('Teacher is already assigned to this course');
     }
 
@@ -261,7 +259,8 @@ export class CoursesService {
     }
 
     const gameObjectId = new Types.ObjectId(gameId);
-    if (course.gameIds.includes(gameObjectId)) {
+    const alreadyAssigned = course.gameIds.some((id) => id.toString() === gameObjectId.toString());
+    if (alreadyAssigned) {
       throw new BadRequestException('Game is already assigned to this course');
     }
 
@@ -325,11 +324,12 @@ export class CoursesService {
 
     // Validate game IDs exist
     if (gameIds && gameIds.length > 0) {
-      const gameObjectIds = gameIds.map(id => new Types.ObjectId(id));
+      const gameObjectIds = Array.from(new Set(gameIds.map(String))).map((id) => new Types.ObjectId(id));
       const games = await this.gameModel.find({ _id: { $in: gameObjectIds } });
       if (games.length !== gameObjectIds.length) {
         throw new BadRequestException('One or more game IDs are invalid');
       }
+      // Replace with unique set
       course.gameIds = gameObjectIds;
     } else {
       course.gameIds = [];

@@ -6,12 +6,7 @@ import { User, UserDocument } from '../schemas/user.schema';
 import { Course, CourseDocument } from '../schemas/course.schema';
 import * as bcrypt from 'bcryptjs';
 
-/**
- * Script to create teacher accounts and assign them to courses
- * Usage: npm run create:teacher
- */
 
-// Configuration: Define your teachers here - ONE teacher per course
 const TEACHERS_CONFIG = [
   {
     email: 'physics.teacher@school.com',

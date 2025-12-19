@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/src/store/authStore';
-import { gamesAPI, progressAPI, monitoringAPI } from '@/src/lib/api';
+import { authAPI, gamesAPI, progressAPI, monitoringAPI } from '@/src/lib/api';
 import { Game } from '@/src/types';
 import * as Phaser from 'phaser';
 import { Button } from '@/src/components/ui/button';
@@ -26,7 +26,7 @@ export default function GamePage() {
   const router = useRouter();
   const params = useParams();
   const gameId = params.id as string;
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const [score, setScore] = useState(0);
@@ -284,6 +284,20 @@ export default function GamePage() {
 
       if (gameRef.current) {
         gameRef.current.destroy(true);
+      }
+
+      // Refresh user points from backend; fallback to local increment
+      try {
+        const profile = await authAPI.getProfile();
+        const serverPoints = profile.data?.points;
+        if (typeof serverPoints === 'number') {
+          updateUser({ points: serverPoints });
+        } else {
+          updateUser({ points: (user?.points || 0) + pointsEarned });
+        }
+      } catch (e) {
+        console.warn('[Game Page] Failed to refresh profile, updating points locally.');
+        updateUser({ points: (user?.points || 0) + pointsEarned });
       }
 
       // Show completion message briefly before redirect

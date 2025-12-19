@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Button } from '@/src/components/ui/button';
-import { progressAPI } from '@/src/lib/api';
+import { authAPI, gamesAPI, progressAPI } from '@/src/lib/api';
 import { useAuthStore } from '@/src/store/authStore';
 import { toast } from 'sonner';
 import { ArrowLeft, Star, Trophy } from 'lucide-react';
@@ -20,11 +20,14 @@ interface Pattern {
   correctAnswer: string;
 }
 
-const GAME_ID = '6939f219b389680c73372faf'; // Pattern Play game ID from play-learn-protect
+// Resolve game ID dynamically from backend to avoid mismatches after reseeding
+// Title must match the seeded game title exactly: 'Pattern Play'
+const GAME_TITLE = 'Pattern Play';
 
 export default function PatternPlayGame() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
+  const [gameId, setGameId] = useState<string | null>(null);
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
@@ -34,6 +37,27 @@ export default function PatternPlayGame() {
   const [gameWon, setGameWon] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
   const [startTime] = useState(Date.now());
+
+  useEffect(() => {
+    // Fetch the game ID by title once the user is available
+    const resolveGameId = async () => {
+      try {
+        const res = await gamesAPI.getAll();
+        const allGames = res.data || [];
+        const match = allGames.find((g: any) => g.title === GAME_TITLE);
+        if (match && match._id) {
+          const id = typeof match._id === 'string' ? match._id : match._id.toString();
+          setGameId(id);
+          console.log(`[Pattern Play] Resolved gameId:`, id);
+        } else {
+          console.warn(`[Pattern Play] Game with title '${GAME_TITLE}' not found.`);
+        }
+      } catch (e) {
+        console.error('[Pattern Play] Failed to resolve gameId:', e);
+      }
+    };
+    resolveGameId();
+  }, [user]);
 
   useEffect(() => {
     generatePattern();
@@ -114,9 +138,13 @@ export default function PatternPlayGame() {
     
     // Save progress
     try {
+      if (!gameId) {
+        console.warn('[Pattern Play] Missing gameId, skipping progress save.');
+        return;
+      }
       const timeSpent = Math.floor((Date.now() - startTime) / 1000);
       const progressData = {
-        gameId: GAME_ID,
+        gameId: gameId,
         score,
         isCompleted: won,
         timeSpent,
@@ -130,6 +158,19 @@ export default function PatternPlayGame() {
       
       if (won) {
         toast.success(language === 'en' ? '✅ Progress saved! Game completed!' : '✅ تم حفظ التقدم! اكتملت اللعبة!');
+        // Refresh user points from backend; fallback to local increment
+        try {
+          const profile = await authAPI.getProfile();
+          const serverPoints = profile.data?.points;
+          if (typeof serverPoints === 'number') {
+            updateUser({ points: serverPoints });
+          } else {
+            updateUser({ points: (user?.points || 0) + progressData.pointsEarned });
+          }
+        } catch (e) {
+          console.warn('[Pattern Play] Failed to refresh profile, updating points locally.');
+          updateUser({ points: (user?.points || 0) + progressData.pointsEarned });
+        }
       }
     } catch (error: any) {
       console.error('Failed to save progress:', error);

@@ -75,14 +75,33 @@ export default function GamesPage() {
         
         const response = await levelsAPI.getMyLevel();
         setPlayerLevel(response.data);
-        
-        // Get unlocked games
-        const unlockedResponse = await levelsAPI.getMyUnlockedGames();
-        const unlockedIds = new Set<string>(
-          (unlockedResponse.data?.unlockedGames || []).map((id: string) => id)
-        );
-        console.log('Loaded unlocked games:', unlockedIds.size, 'games');
-        setUnlockedGameIds(unlockedIds);
+        console.log('Player level data:', response.data);
+
+        // Prefer unlocked IDs from level details to avoid extra call and 401 issues
+        const levelUnlocked = (response.data?.unlockedGames || []) as string[];
+        if (Array.isArray(levelUnlocked) && levelUnlocked.length > 0) {
+          const unlockedIds = new Set<string>(levelUnlocked.map((id) => String(id)));
+          console.log('Loaded unlocked games from level details:', unlockedIds.size);
+          setUnlockedGameIds(unlockedIds);
+        } else {
+          // Fallback to explicit unlocked games endpoint
+          try {
+            const unlockedResponse = await levelsAPI.getMyUnlockedGames();
+            console.log('API Response - unlocked games:', unlockedResponse.data);
+            const fromIds = (unlockedResponse.data?.unlockedGames || []) as string[];
+            const fromDetails = (unlockedResponse.data?.gameDetails || []) as any[];
+            const detailIds = fromDetails
+              .map((g) => (g && g._id ? (typeof g._id === 'string' ? g._id : g._id.toString()) : null))
+              .filter(Boolean) as string[];
+            const allIds = [...fromIds.map(String), ...detailIds.map(String)];
+            const unlockedIds = new Set<string>(allIds);
+            console.log('Loaded unlocked games:', unlockedIds.size, 'games');
+            console.log('Game IDs:', Array.from(unlockedIds));
+            setUnlockedGameIds(unlockedIds);
+          } catch (unlockedErr: any) {
+            console.error('Failed to fetch unlocked games via endpoint:', unlockedErr);
+          }
+        }
       }
     } catch (error: any) {
       console.error('Level loading error:', error);
@@ -179,8 +198,8 @@ export default function GamesPage() {
   };
 
   const handleGameClick = async (game: Game) => {
-    // Check if game is locked
-    if (user?.role === 'child' && !unlockedGameIds.has(game._id)) {
+    // Check if game is locked (always unlock EASY)
+    if (user?.role === 'child' && game.difficulty !== 'easy' && !unlockedGameIds.has(String(game._id))) {
       toast.error(language === 'en' ? 'This game is locked. Level up to unlock!' : 'هذه اللعبة مقفلة. ارتقِ مستوى لفتحها!');
       return;
     }
@@ -389,14 +408,13 @@ export default function GamesPage() {
               const isCompleted = gameProgress?.isCompleted || false;
               const bestScore = gameProgress?.score || 0;
               const playCount = gameProgress?.playCount || 0;
-              const isLocked = user?.role === 'child' && !unlockedGameIds.has(game._id);
+              const isLocked = user?.role === 'child' && game.difficulty !== 'easy' && !unlockedGameIds.has(String(game._id));
 
-              console.log(`Game [${game.title}]:`, {
-                gameId: game._id,
-                gameProgress,
-                isCompleted,
-                isLocked,
-              });
+              if (isLocked) {
+                console.warn(`🔒 LOCKED: ${game.title} (ID: ${game._id})`);
+              } else {
+                console.log(`✅ UNLOCKED: ${game.title} (ID: ${game._id})`);
+              }
 
               return (
                 <div 

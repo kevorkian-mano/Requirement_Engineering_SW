@@ -527,6 +527,18 @@ export class LevelProgressionService {
       }
     }
 
+    // Handle invalid state: player level exists but has zero unlocked games
+    if (playerLevel && (!playerLevel.unlockedGames || playerLevel.unlockedGames.length === 0)) {
+      const user = await this.usersModel.findById(userId);
+      if (user && user.ageGroup) {
+        this.logger.warn(`Player ${userId} has zero unlocked games. Re-initializing for age group ${user.ageGroup}.`);
+        await this.resetPlayerLevel(userId, user.ageGroup);
+        playerLevel = await this.playerLevelModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+      }
+    }
+
     if (!playerLevel) {
       this.logger.warn(`No player level found for user ${userId}`);
       return [];
