@@ -3,7 +3,7 @@ import * as Phaser from 'phaser';
 export class ForceMotionLabGame extends Phaser.Scene {
   private score: number = 0;
   private scoreText!: Phaser.GameObjects.Text;
-  private ball!: Phaser.Physics.Arcade.Sprite;
+  private ball!: Phaser.GameObjects.Arc;
   private target!: Phaser.GameObjects.Rectangle;
   private forceSlider!: Phaser.GameObjects.Rectangle;
   private forceValue: number = 50;
@@ -17,6 +17,11 @@ export class ForceMotionLabGame extends Phaser.Scene {
   private instructionText!: Phaser.GameObjects.Text;
   private attempts: number = 0;
   private hits: number = 0;
+  private isBallMoving: boolean = false;
+  private ballVelocityX: number = 0;
+  private ballVelocityY: number = 0;
+  private gravity: number = 0.5;
+  private friction: number = 0.99;
 
   constructor() {
     super({ key: 'ForceMotionLabGame' });
@@ -61,27 +66,15 @@ export class ForceMotionLabGame extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Create ground
-    const ground = this.add.rectangle(400, 550, 800, 100, 0x8B4513);
-    this.physics.add.existing(ground, true);
-    (ground.body as Phaser.Physics.Arcade.Body).setImmovable(true);
-
+    this.add.rectangle(400, 550, 800, 100, 0x8B4513);
+    
     // Create target
     this.target = this.add.rectangle(650, 450, 80, 80, 0xFF0000);
     this.target.setStrokeStyle(3, 0xFFFFFF);
-    this.physics.add.existing(this.target, true);
-    (this.target.body as Phaser.Physics.Arcade.Body).setImmovable(true);
 
-    // Create ball using graphics
-    const ballGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    ballGraphics.fillStyle(0x0000FF);
-    ballGraphics.fillCircle(15, 15, 15);
-    ballGraphics.generateTexture('ball', 30, 30);
-    ballGraphics.destroy();
-
-    this.ball = this.physics.add.sprite(100, 500, 'ball');
-    this.ball.setCollideWorldBounds(true);
-    (this.ball.body as Phaser.Physics.Arcade.Body).setBounce(0.3);
-
+    // Create ball (using Arc for easier collision)
+    this.ball = this.add.circle(100, 500, 15, 0x0000FF);
+    
     // Force slider
     this.add.text(150, 200, 'Force:', {
       fontSize: '20px',
@@ -90,7 +83,7 @@ export class ForceMotionLabGame extends Phaser.Scene {
     });
 
     const forceTrack = this.add.rectangle(250, 200, 200, 10, 0xCCCCCC);
-    this.forceSlider = this.add.rectangle(250 + this.forceValue, 200, 20, 30, 0x4ECDC4);
+    this.forceSlider = this.add.rectangle(250, 200, 20, 30, 0x4ECDC4);
     this.forceSlider.setInteractive({ useHandCursor: true, draggable: true });
 
     this.forceText = this.add.text(470, 200, '50', {
@@ -104,7 +97,7 @@ export class ForceMotionLabGame extends Phaser.Scene {
       if (gameObject === this.forceSlider) {
         const newX = Phaser.Math.Clamp(dragX, 150, 350);
         this.forceSlider.x = newX;
-        this.forceValue = Math.round((newX - 150) / 2);
+        this.forceValue = Math.round(((newX - 150) / 200) * 100);
         this.forceText.setText(this.forceValue.toString());
       }
     });
@@ -117,7 +110,7 @@ export class ForceMotionLabGame extends Phaser.Scene {
     });
 
     const angleTrack = this.add.rectangle(250, 250, 200, 10, 0xCCCCCC);
-    this.angleSlider = this.add.rectangle(250 + this.angleValue, 250, 20, 30, 0x06D6A0);
+    this.angleSlider = this.add.rectangle(295, 250, 20, 30, 0x06D6A0); // Start at 45°
     this.angleSlider.setInteractive({ useHandCursor: true, draggable: true });
 
     this.angleText = this.add.text(470, 250, '45°', {
@@ -131,7 +124,7 @@ export class ForceMotionLabGame extends Phaser.Scene {
       if (gameObject === this.angleSlider) {
         const newX = Phaser.Math.Clamp(dragX, 150, 350);
         this.angleSlider.x = newX;
-        this.angleValue = Math.round((newX - 150) / 2);
+        this.angleValue = Math.round(((newX - 150) / 200) * 90);
         this.angleText.setText(this.angleValue + '°');
       }
     });
@@ -141,51 +134,133 @@ export class ForceMotionLabGame extends Phaser.Scene {
     this.launchButton.setStrokeStyle(3, 0xFFFFFF);
     this.launchButton.setInteractive({ useHandCursor: true });
 
-    this.add.text(200, 320, 'Launch!', {
+    const launchText = this.add.text(200, 320, 'Launch!', {
       fontSize: '24px',
       color: '#FFFFFF',
       fontFamily: 'Arial',
       fontWeight: 'bold',
     }).setOrigin(0.5);
 
-    this.launchButton.on('pointerdown', () => this.launchBall());
+    this.launchButton.on('pointerdown', () => {
+      if (!this.isBallMoving) {
+        this.launchBall();
+      }
+    });
 
     // Reset button
     this.resetButton = this.add.rectangle(400, 320, 150, 50, 0xFF6B6B);
     this.resetButton.setStrokeStyle(3, 0xFFFFFF);
     this.resetButton.setInteractive({ useHandCursor: true });
 
-    this.add.text(400, 320, 'Reset', {
+    const resetText = this.add.text(400, 320, 'Reset', {
       fontSize: '24px',
       color: '#FFFFFF',
       fontFamily: 'Arial',
       fontWeight: 'bold',
     }).setOrigin(0.5);
 
-    this.resetButton.on('pointerdown', () => this.resetBall());
+    this.resetButton.on('pointerdown', () => {
+      this.resetBall();
+    });
 
-    // Collision detection
-    this.physics.add.overlap(this.ball, this.target, () => this.hitTarget(), undefined, this);
+    // Draw trajectory line (optional)
+    this.drawTrajectory();
   }
 
   launchBall() {
-    if (this.ball.body!.velocity.x !== 0 || this.ball.body!.velocity.y !== 0) {
-      return; // Ball already moving
-    }
-
+    if (this.isBallMoving) return;
+    
+    this.isBallMoving = true;
     this.attempts++;
+    
+    // Convert angle to radians
     const angleRad = Phaser.Math.DegToRad(this.angleValue);
-    const velocityX = this.forceValue * Math.cos(angleRad);
-    const velocityY = -this.forceValue * Math.sin(angleRad);
+    
+    // Calculate initial velocity components
+    // Force value is used directly as velocity magnitude
+    this.ballVelocityX = this.forceValue * Math.cos(angleRad);
+    this.ballVelocityY = -this.forceValue * Math.sin(angleRad); // Negative because y goes down in screen coordinates
+    
+    console.log(`Launching ball: force=${this.forceValue}, angle=${this.angleValue}°`);
+    console.log(`Velocity X=${this.ballVelocityX}, Y=${this.ballVelocityY}`);
+  }
 
-    this.ball.setVelocity(velocityX, velocityY);
+  update() {
+    if (this.isBallMoving) {
+      // Apply gravity
+      this.ballVelocityY += this.gravity;
+      
+      // Apply friction (air resistance)
+      this.ballVelocityX *= this.friction;
+      this.ballVelocityY *= this.friction;
+      
+      // Update ball position
+      this.ball.x += this.ballVelocityX;
+      this.ball.y += this.ballVelocityY;
+      
+      // Ground collision
+      if (this.ball.y >= 535) { // Ground level (550 - ball radius 15)
+        this.ball.y = 535;
+        this.ballVelocityY = -this.ballVelocityY * 0.7; // Bounce with energy loss
+        this.ballVelocityX *= 0.9; // Friction on ground
+        
+        // Stop if velocity is very small
+        if (Math.abs(this.ballVelocityX) < 0.5 && Math.abs(this.ballVelocityY) < 0.5) {
+          this.isBallMoving = false;
+          this.ballVelocityX = 0;
+          this.ballVelocityY = 0;
+        }
+      }
+      
+      // Wall collisions (left and right bounds)
+      if (this.ball.x <= 15) { // Left wall
+        this.ball.x = 15;
+        this.ballVelocityX = -this.ballVelocityX * 0.7;
+      } else if (this.ball.x >= 785) { // Right wall
+        this.ball.x = 785;
+        this.ballVelocityX = -this.ballVelocityX * 0.7;
+      }
+      
+      // Target collision detection
+      this.checkTargetCollision();
+    }
+  }
+
+  checkTargetCollision() {
+    // Simple circle-rectangle collision detection
+    const ballRadius = 15;
+    const targetLeft = this.target.x - this.target.width / 2;
+    const targetRight = this.target.x + this.target.width / 2;
+    const targetTop = this.target.y - this.target.height / 2;
+    const targetBottom = this.target.y + this.target.height / 2;
+    
+    // Find closest point on target to ball
+    const closestX = Phaser.Math.Clamp(this.ball.x, targetLeft, targetRight);
+    const closestY = Phaser.Math.Clamp(this.ball.y, targetTop, targetBottom);
+    
+    // Calculate distance between ball and closest point
+    const distanceX = this.ball.x - closestX;
+    const distanceY = this.ball.y - closestY;
+    const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+    
+    // Check if distance is less than ball radius
+    if (distanceSquared < (ballRadius * ballRadius)) {
+      this.hitTarget();
+    }
   }
 
   hitTarget() {
+    if (!this.isBallMoving) return;
+    
+    this.isBallMoving = false;
     this.hits++;
     this.score += 50;
     this.updateScore();
 
+    // Visual feedback
+    this.target.fillColor = 0x00FF00; // Change to green
+    this.ball.fillColor = 0xFFFF00; // Change ball to yellow
+    
     // Show success message
     const successText = this.add.text(400, 150, '🎉 Target Hit! 🎉', {
       fontSize: '32px',
@@ -196,20 +271,72 @@ export class ForceMotionLabGame extends Phaser.Scene {
 
     this.time.delayedCall(2000, () => {
       successText.destroy();
+      // Reset colors
+      this.target.fillColor = 0xFF0000;
+      this.ball.fillColor = 0x0000FF;
       this.resetBall();
     });
   }
 
   resetBall() {
-    this.ball.setPosition(100, 500);
-    this.ball.setVelocity(0, 0);
+    this.isBallMoving = false;
+    this.ballVelocityX = 0;
+    this.ballVelocityY = 0;
+    this.ball.x = 100;
+    this.ball.y = 500;
+    this.ball.fillColor = 0x0000FF;
+    
+    // Reset sliders to default values
+    this.forceSlider.x = 250;
+    this.forceValue = 50;
+    this.forceText.setText('50');
+    
+    this.angleSlider.x = 295;
+    this.angleValue = 45;
+    this.angleText.setText('45°');
   }
 
-  update() {
-    // Check if ball stopped moving
-    if (this.ball.body!.velocity.x === 0 && this.ball.body!.velocity.y === 0 && this.ball.y > 400) {
-      // Ball has stopped, can launch again
-    }
+  drawTrajectory() {
+    // This is an optional function to show trajectory prediction
+    // You can call this when sliders change
+    const graphics = this.add.graphics();
+    
+    const updateTrajectory = () => {
+      graphics.clear();
+      graphics.lineStyle(2, 0x888888, 0.5);
+      
+      const angleRad = Phaser.Math.DegToRad(this.angleValue);
+      let velX = this.forceValue * Math.cos(angleRad);
+      let velY = -this.forceValue * Math.sin(angleRad);
+      
+      let x = 100;
+      let y = 500;
+      
+      graphics.beginPath();
+      graphics.moveTo(x, y);
+      
+      // Simulate trajectory for 100 frames
+      for (let i = 0; i < 100; i++) {
+        velY += this.gravity;
+        velX *= this.friction;
+        velY *= this.friction;
+        
+        x += velX;
+        y += velY;
+        
+        graphics.lineTo(x, y);
+        
+        // Stop if hits ground
+        if (y >= 535) break;
+      }
+      
+      graphics.strokePath();
+    };
+    
+    // Update trajectory when sliders change
+    this.forceSlider.on('drag', updateTrajectory);
+    this.angleSlider.on('drag', updateTrajectory);
+    updateTrajectory();
   }
 
   updateScore() {
@@ -219,4 +346,3 @@ export class ForceMotionLabGame extends Phaser.Scene {
     }
   }
 }
-
