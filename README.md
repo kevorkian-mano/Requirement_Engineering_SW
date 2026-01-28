@@ -166,38 +166,19 @@ Teachers get their own course to manage:
 ✅ See all students in your course  
 ✅ Track which games they play  
 ✅ Monitor progress and scores  
-✅ Get alerts for students who need help  
-✅ Write notes about student progress  
-✅ Generate reports  
+
+
 
 ---
 
-## 🛡️ Safety First!
 
-### 3-Layer Protection System
-
-```
-Layer 1: Text Analysis 🔍
-├─ Blocks bad words instantly
-├─ Detects bullying language
-└─ Keeps chat safe
-
-Layer 2: Behavior Monitoring 📊
-├─ Notices if scores suddenly drop
-├─ Sees if someone stops playing
-└─ Alerts teachers if help is needed
-
-Layer 3: Social Protection 🤝
-├─ Detects if someone is left out
-├─ Notices group bullying
-└─ Helps everyone feel included
 ```
 
 ### For Parents
 - 📊 See screen time reports
 - 🚨 Get safety alerts
 - 📈 Track learning progress
-- ⏰ Set time limits
+
 
 ---
 
@@ -329,26 +310,12 @@ We have **6 comprehensive guides**:
 ### 👨‍👩‍👧‍👦 For Parents
 - [x] **Screen time monitoring** - see daily/weekly usage
 - [x] **Safety alerts** - get notified of concerning behavior
-- [x] **Progress reports** - track learning achievements
 - [x] **Activity breakdown** - know which games they play
-- [x] **Time limits** - set maximum daily playtime
 
 ### 👨‍🏫 For Teachers
 - [x] **6 course subjects** (Physics, Chemistry, Math, Language, Coding, History)
 - [x] **Student monitoring** - track all students in your course
-- [x] **Progress analytics** - see who needs help
-- [x] **Alert system** - automatic notifications for concerning patterns
-- [x] **Notes system** - write observations about students
-- [x] **Report generation** - export class performance reports
 
-### 🛡️ Safety Features
-- [x] **3-layer cyberbullying detection**
-  - Text analysis (blocks bad words)
-  - Behavioral monitoring (detects emotional distress)
-  - Social network analysis (spots isolation)
-- [x] **Consequence progression** - educational approach to violations
-- [x] **Parent notifications** - keep families informed
-- [x] **Teacher alerts** - help students in need
 
 ---
 
@@ -360,26 +327,16 @@ We have **6 comprehensive guides**:
 🏆 Levels:                3 progression levels
 📚 Subjects:              6 subjects
 👥 User Roles:            3 roles (Child, Parent, Teacher)
-🔐 Security Layers:       3 layers
 📝 Database Schemas:      15+ schemas
 🔌 API Endpoints:         100+ endpoints
-💻 Lines of Code:         10,000+ lines
 📖 Documentation Pages:   6 comprehensive guides
 🇪🇬 Languages:            Arabic + English
-⭐ New Games:             Pattern Play (Medium), Memory Match (Hard)
+
 ```
 
 ---
 
-## 🎨 Screenshots (Coming Soon!)
 
-> 📸 Screenshots will be added here showing:
-> - Game selection screen
-> - Playing a game
-> - Level progression
-> - Teacher dashboard
-> - Parent monitoring
-> - Safety alerts
 
 ---
 
