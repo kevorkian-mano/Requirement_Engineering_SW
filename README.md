@@ -75,7 +75,7 @@ We have **33 amazing games** across 6 subjects! Here are some favorites:
 ```
 🌟 Number Basics         →  Learn numbers 1-10
 ➕ Addition Adventure    →  Become an addition master
-✖️  Multiplication Mania →  Master times tables
+✖️ Multiplication Mania  →  Master times tables
 🧮 Algebra Explorer      →  Solve cool equations (fully playable!)
 📐 Geometry Master       →  Discover shapes and angles
 🎨 Shape Explorer        →  Learn about shapes!
@@ -86,23 +86,23 @@ We have **33 amazing games** across 6 subjects! Here are some favorites:
 🔤 Arabic ABCs           →  Learn the alphabet
 📝 Word Builder          →  Build amazing words
 📚 Vocabulary Champion   →  Expand your vocabulary (fully playable!)
-✍️  Story Creator        →  Write your own stories
-🧩 Pattern Play          →  Complete fun patterns! ⭐ NEW (Medium)
+✍️ Story Creator         →  Write your own stories
+🧩 Pattern Play          →  Complete fun patterns! 
 ```
 
 ### 💻 Coding Games (6 games)
 ```
 🎯 Code Basics           →  Start coding journey
 🧩 Block Coder           →  Visual programming
-☕ Java Basics           →  Learn Java (fully playable!)
-⚡ Logic Gates Master    →  Boolean logic (fully playable!)
+☕ Java Basics            →  Learn Java (fully playable!)
+⚡ Logic Gates Master     →  Boolean logic (fully playable!)
 🎮 Game Developer        →  Create your own games (fully playable!)
-🎲 Memory Match          →  Match pairs of cards! ⭐ NEW (Hard)
+🎲 Memory Match          →  Match pairs of cards! 
 ```
 
 ### 🔬 Science Games (4 games)
 ```
-⚙️  Forces & Motion      →  Newton's laws
+⚙️ Forces & Motion       →  Newton's laws
 🧪 Chemical Reactions    →  Chemistry experiments
 💡 Electricity & Circuits→  Build circuits
 ```
@@ -110,7 +110,7 @@ We have **33 amazing games** across 6 subjects! Here are some favorites:
 ### 🏺 History Games (5 games)
 ```
 👑 Egyptian Pharaohs     →  Ancient Egypt
-🏛️  Pyramid Builder      →  Build pyramids (fully playable!)
+🏛️ Pyramid Builder       →  Build pyramids (fully playable!)
 🌊 Nile Explorer         →  River civilization
 ⏰ Timeline Master       →  Historical events
 ```
@@ -120,7 +120,7 @@ We have **33 amazing games** across 6 subjects! Here are some favorites:
 🎨 Art Studio            →  Create digital art
 🎵 Music Maker           →  Compose music
 🌍 Geography Explorer    →  Discover the world
-♻️  Environmental Hero   →  Learn sustainability
+♻️ Environmental Hero    →  Learn sustainability
 ```
 
 > **6 games are fully playable** with Phaser.js technology! More coming soon! 🚀
